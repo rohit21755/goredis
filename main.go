@@ -3,6 +3,7 @@ package main
 
 import (
 	"fmt"
+	"log"
 	"log/slog" // structured logging
 	"net"      // networking primitives
 )
@@ -21,6 +22,7 @@ type Server struct {
 	peers     map[*Peer]bool // track active peer connections
 	ln        net.Listener   // TCP listener instance
 	addPeerCh chan *Peer     // channel to add new peers to the map
+	quitCh    chan struct{}
 }
 
 // NewServer creates and initializes a new TCP server instance
@@ -34,6 +36,7 @@ func NewServer(cfg Config) *Server {
 		Config:    cfg,                  // store the configuration
 		peers:     make(map[*Peer]bool), // initialize empty peers map
 		addPeerCh: make(chan *Peer),     // create channel for peer management
+		quitCh:    make(chan struct{}),
 	}
 }
 
@@ -44,8 +47,9 @@ func (s *Server) Start() error {
 	if err != nil {
 		return err // return any listener creation errors
 	}
-	s.ln = ln         // store listener in server struct
-	go s.Loop()       // start peer management loop in background
+	s.ln = ln   // store listener in server struct
+	go s.Loop() // start peer management loop in background
+	slog.Info("Server Running")
 	go s.acceptLoop() // start accepting connections in background
 	return nil        // return nil on successful start
 }
@@ -54,10 +58,12 @@ func (s *Server) Start() error {
 func (s *Server) Loop() {
 	for {
 		select {
+		case <-s.quitCh:
+			return
 		case peer := <-s.addPeerCh: // wait for new peers
 			s.peers[peer] = true // add new peer to the map
-		default:
-			fmt.Println("foo") // placeholder default case
+			// default:
+			// 	fmt.Println("foo") // placeholder default case
 		}
 	}
 }
@@ -77,8 +83,23 @@ func (s *Server) acceptLoop() {
 // handleConn processes individual TCP connections
 func (s *Server) handleConn(conn net.Conn) {
 	// TODO: Implement connection handling logic
+	newPeer := NewPeer(conn)
+
+	s.addPeerCh <- newPeer
+	slog.Info("new connection")
+	if err := newPeer.readLoop(); err != nil {
+		slog.Error("Peer read error")
+	}
+
 }
 
 func main() {
 	fmt.Println("Hello, World!") // placeholder main function
+	s := NewServer(Config{})
+	if err := s.Start(); err != nil {
+		log.Fatal(err)
+	}
+
+	// Keep the main goroutine running
+	select {}
 }
