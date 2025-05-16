@@ -23,6 +23,7 @@ type Server struct {
 	ln        net.Listener   // TCP listener instance
 	addPeerCh chan *Peer     // channel to add new peers to the map
 	quitCh    chan struct{}
+	msgCh     chan []byte
 }
 
 // NewServer creates and initializes a new TCP server instance
@@ -37,6 +38,7 @@ func NewServer(cfg Config) *Server {
 		peers:     make(map[*Peer]bool), // initialize empty peers map
 		addPeerCh: make(chan *Peer),     // create channel for peer management
 		quitCh:    make(chan struct{}),
+		msgCh:     make(chan []byte),
 	}
 }
 
@@ -54,12 +56,21 @@ func (s *Server) Start() error {
 	return nil        // return nil on successful start
 }
 
+func (s *Server) handleRawMessage(rawMsg []byte) error {
+	return nil
+}
+
 // Loop handles peer management operations
 func (s *Server) Loop() {
 	for {
 		select {
 		case <-s.quitCh:
 			return
+		case rawMsg := <-s.msgCh:
+			if err := s.handleRawMessage(rawMsg); err != nil {
+				slog.Error("Raw message error", "err", err)
+			}
+			fmt.Println(string(rawMsg))
 		case peer := <-s.addPeerCh: // wait for new peers
 			s.peers[peer] = true // add new peer to the map
 			// default:
@@ -83,7 +94,7 @@ func (s *Server) acceptLoop() {
 // handleConn processes individual TCP connections
 func (s *Server) handleConn(conn net.Conn) {
 	// TODO: Implement connection handling logic
-	newPeer := NewPeer(conn)
+	newPeer := NewPeer(conn, s.msgCh)
 
 	s.addPeerCh <- newPeer
 	slog.Info("new connection")
