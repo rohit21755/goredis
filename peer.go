@@ -1,28 +1,38 @@
+// Package main implements a TCP server and its components
 package main
 
 import (
-	"net"
+	"net" // provides basic networking interface
 )
 
+// Peer represents a connected client in the TCP server
 type Peer struct {
-	conn net.Conn
+	conn net.Conn // underlying network connection
 }
 
+// NewPeer creates and initializes a new Peer instance
+// conn: the established TCP connection for this peer
 func NewPeer(conn net.Conn) *Peer {
 	return &Peer{
 		conn: conn,
 	}
 }
 
+// readLoop continuously reads data from the peer's connection
+// It runs in a loop until an error occurs or connection closes
 func (p *Peer) readLoop() error {
-	buf := make([]byte, 1024)
+	buf := make([]byte, 1024) // temporary buffer for reading data
 	for {
+		// Read incoming data into buffer
 		n, err := p.conn.Read(buf)
 		if err != nil {
-			return err
+			return err // return any read errors (including EOF)
 		}
 
+		// Create a new buffer with exact size of message
 		msgBuf := make([]byte, n)
-		copy(msgBuf, buf[:n])
+		copy(msgBuf, buf[:n]) // copy only the bytes that were read
+
+		// TODO: Process the received message (msgBuf)
 	}
 }
