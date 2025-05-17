@@ -2,7 +2,6 @@
 package main
 
 import (
-	"fmt"
 	"net" // provides basic networking interface
 )
 
@@ -34,7 +33,6 @@ func (p *Peer) readLoop() error {
 
 		// Create a new buffer with exact size of message
 		msgBuf := make([]byte, n)
-		fmt.Println(string(buf[:n]))
 		copy(msgBuf, buf[:n]) // copy only the bytes that were read
 		//- We'd keep the entire buf with 1019 unused bytes
 		//- Could contain garbage data from previous reads

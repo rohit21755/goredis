@@ -57,6 +57,16 @@ func (s *Server) Start() error {
 }
 
 func (s *Server) handleRawMessage(rawMsg []byte) error {
+	// slog.Info("rawsmg", rawMsg)
+	cmd, err := parseCommand(string(rawMsg))
+	if err != nil {
+		return err
+	}
+	switch v := cmd.(type) {
+	case SetCommand:
+		slog.Info("Somebody want to ser a key in to the hash table", "key", v.key, "value", v.val)
+	}
+
 	return nil
 }
 
@@ -70,7 +80,7 @@ func (s *Server) Loop() {
 			if err := s.handleRawMessage(rawMsg); err != nil {
 				slog.Error("Raw message error", "err", err)
 			}
-			fmt.Println(string(rawMsg))
+
 		case peer := <-s.addPeerCh: // wait for new peers
 			s.peers[peer] = true // add new peer to the map
 			// default:

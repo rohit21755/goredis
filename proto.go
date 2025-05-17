@@ -9,7 +9,11 @@ import (
 	"github.com/tidwall/resp"
 )
 
-type Command struct {
+const (
+	CommandSET = "SET"
+)
+
+type Command interface {
 }
 
 type SetCommand struct {
@@ -27,10 +31,24 @@ func parseCommand(raw string) (Command, error) {
 			log.Fatal(err)
 		}
 		if v.Type() == resp.Array {
-			for i, v := range v.Array() {
-				fmt.Printf("  #%d %s, value: '%s'\n", i, v.Type(), v)
+			for _, value := range v.Array() {
+				switch value.String() {
+				case CommandSET:
+					if len(v.Array()) != 3 {
+						return nil, fmt.Errorf("Invalid command")
+					}
+					cmd := SetCommand{
+
+						key: v.Array()[1].String(),
+						val: v.Array()[2].String(),
+					}
+					return cmd, nil
+				default:
+				}
 			}
 		}
+		return nil, fmt.Errorf("invalid or unknown command")
 	}
-	return Command{}, nil
+	return nil, fmt.Errorf("invalid or unknown command")
+
 }
