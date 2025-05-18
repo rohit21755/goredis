@@ -22,7 +22,7 @@ type Command interface {
 
 // SetCommand represents the Redis SET command
 type SetCommand struct {
-	key, val string // key and value to be set
+	key, val []byte // key and value to be set
 }
 
 // parseCommand parses a raw byte slice representing a Redis command into a Command interface
@@ -55,8 +55,8 @@ func parseCommand(raw string) (Command, error) {
 					// Create and return a SetCommand struct
 					cmd := SetCommand{
 
-						key: v.Array()[1].String(), // Extract the key
-						val: v.Array()[2].String(), // Extract the value
+						key: v.Array()[1].Bytes(), // Extract the key
+						val: v.Array()[2].Bytes(), // Extract the value
 					}
 					return cmd, nil // Return the parsed command and no error
 				default:

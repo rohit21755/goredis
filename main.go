@@ -28,6 +28,7 @@ type Server struct {
 	addPeerCh chan *Peer     // channel to add new peers to the map
 	quitCh    chan struct{}  // channel to signal server shutdown
 	msgCh     chan []byte    // channel to receive raw messages from peers
+	kv        *KV
 }
 
 // NewServer creates and initializes a new TCP server instance
@@ -44,6 +45,7 @@ func NewServer(cfg Config) *Server {
 		addPeerCh: make(chan *Peer),     // create channel for peer management
 		quitCh:    make(chan struct{}),  // initialize quit channel
 		msgCh:     make(chan []byte),    // initialize message channel
+		kv:        NewKV(),              // initialize KV store
 	}
 }
 
@@ -66,11 +68,11 @@ func (s *Server) Start() error {
 // k: the key to set
 // v: the value to set
 // Returns an error if the operation fails.
-func (s *Server) set(k, v string) error {
-	// TODO: Implement logic to set key-value pair in storage
-	slog.Info("SET command received", "key", k, "value", v)
-	return nil // Placeholder return
-}
+// func (s *Server) set(k, v string) error {
+// 	// TODO: Implement logic to set key-value pair in storage
+// 	slog.Info("SET command received", "key", k, "value", v)
+// 	return nil // Placeholder return
+// }
 
 // handleRawMessage parses and handles raw messages from peers
 // rawMsg: the raw byte slice received from a peer
@@ -84,7 +86,7 @@ func (s *Server) handleRawMessage(rawMsg []byte) error {
 	switch v := cmd.(type) {
 	case SetCommand:
 		// Handle SetCommand by calling the set method
-		return s.set(v.key, v.val)
+		return s.kv.Set(v.key, v.val)
 	// TODO: Add cases for other commands (GET, DEL, etc.)
 	default:
 		// Log unknown commands
@@ -146,8 +148,9 @@ func main() {
 	fmt.Println("Hello, World!") // placeholder main function
 
 	// Start the server in a goroutine so the main function can continue.
+	s := NewServer(Config{})
 	go func() {
-		s := NewServer(Config{})
+
 		if err := s.Start(); err != nil {
 			log.Fatal(err)
 		}
@@ -160,11 +163,11 @@ func main() {
 
 		// Call the Set method on the client
 		// Using context.TODO() as context handling is not yet implemented in the client.
-		if err := client.Set(context.TODO(), fmt.Sprintf("key%d", i), fmt.Sprintf("value%d", i)); err != nil {
+		if err := client.Set(context.TODO(), fmt.Sprintf("foo_%d", i), fmt.Sprintf("bar_%d", i)); err != nil {
 			log.Fatal(err)
 		}
 	}
-
+	fmt.Println(s.kv.data)
 	// Keep the main goroutine running for a short duration to allow server to process requests.
 	time.Sleep(time.Second)
 
