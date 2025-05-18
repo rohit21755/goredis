@@ -157,9 +157,9 @@ func main() {
 	}()
 
 	// Create and use a client to test the server. This is temporary for testing.
+	client := client.New("localhost:8080")
 	for i := 0; i < 10; i++ {
 		// Create a new client instance for each iteration
-		client := client.New("localhost:8080")
 
 		// Call the Set method on the client
 		// Using context.TODO() as context handling is not yet implemented in the client.

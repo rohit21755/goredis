@@ -13,6 +13,7 @@ import (
 // Constants for command names
 const (
 	CommandSET = "SET"
+	CommandGET = "GET"
 )
 
 // Command is an interface for all command types
@@ -22,6 +23,9 @@ type Command interface {
 
 // SetCommand represents the Redis SET command
 type SetCommand struct {
+	key, val []byte // key and value to be set
+}
+type GetCommand struct {
 	key, val []byte // key and value to be set
 }
 
@@ -47,6 +51,18 @@ func parseCommand(raw string) (Command, error) {
 			for _, value := range v.Array() {
 				// Check the command name (first element of the array)
 				switch value.String() {
+				case CommandGET:
+					// Validate the number of arguments for the SET command
+					if len(v.Array()) != 2 {
+						return nil, fmt.Errorf("Invalid command") // return error for incorrect argument count
+					}
+					// Create and return a SetCommand struct
+					cmd := GetCommand{
+
+						key: v.Array()[1].Bytes(), // Extract the key
+						// Extract the value
+					}
+					return cmd, nil
 				case CommandSET:
 					// Validate the number of arguments for the SET command
 					if len(v.Array()) != 3 {
