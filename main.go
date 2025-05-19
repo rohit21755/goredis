@@ -7,7 +7,6 @@ import (
 	"log"      // for logging fatal errors
 	"log/slog" // structured logging
 	"net"      // networking primitives
-	"time"
 
 	// for timing operations, like sleeps
 	"github.com/rohit21755/goredis/client" // client package for testing
@@ -173,7 +172,10 @@ func main() {
 	}()
 
 	// Create and use a client to test the server. This is temporary for testing.
-	client := client.New("localhost:8080")
+	client, err := client.New("localhost:8080")
+	if err != nil {
+		log.Fatal(err)
+	}
 
 	for i := 0; i < 10; i++ {
 		// Create a new client instance for each iteration
@@ -183,7 +185,7 @@ func main() {
 		if err := client.Set(context.TODO(), fmt.Sprintf("foo_%d", i), fmt.Sprintf("bar_%d", i)); err != nil {
 			log.Fatal(err)
 		}
-		time.Sleep(time.Second * 2)
+
 		val, err := client.Get(context.TODO(), fmt.Sprintf("foo_%d", i))
 		if err != nil {
 			log.Fatal(err)
