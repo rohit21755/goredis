@@ -4,8 +4,8 @@ package client
 import (
 	"bytes"   // for buffer manipulation
 	"context" // for context handling
-	"io"
-	"net" // for network operations
+	"net"     // for network operations
+	"time"
 
 	"github.com/tidwall/resp" // RESP protocol library
 )
@@ -34,6 +34,7 @@ func (c *Client) Set(ctx context.Context, key string, val string) error {
 	if err != nil {
 		return err // Return any connection error.
 	}
+	time.Sleep(time.Second)
 	// Use a buffer to build the RESP message.
 	buf := &bytes.Buffer{}
 	// Create a RESP writer that writes to the buffer.
@@ -42,7 +43,25 @@ func (c *Client) Set(ctx context.Context, key string, val string) error {
 	wr.WriteArray([]resp.Value{resp.StringValue("SET"), resp.StringValue(key), resp.StringValue(val)})
 	// Write the buffered RESP message to the network connection.
 	// _, err = conn.Write(buf.Bytes())
-	_, err = io.Copy(conn, buf)
+	_, err = conn.Write(buf.Bytes())
 	// Return the error from the write operation (or nil on success).
 	return err
+}
+
+func (c *Client) Get(ctx context.Context, key string) (string, error) {
+	conn, err := net.Dial("tcp", c.addr)
+	if err != nil {
+		return "", err
+	}
+	buf := &bytes.Buffer{}
+	wr := resp.NewWriter(buf)
+	wr.WriteArray([]resp.Value{resp.StringValue("GET"), resp.StringValue(key)})
+	_, err = conn.Write(buf.Bytes())
+	if err != nil {
+		return "", err
+	}
+	b := make([]byte, 1024)
+	n, err := conn.Read(b)
+
+	return string(b[:n]), err
 }

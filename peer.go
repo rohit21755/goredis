@@ -8,16 +8,20 @@ import (
 // Peer represents a connected client in the TCP server
 type Peer struct {
 	conn  net.Conn // underlying network connection
-	msgCh chan []byte
+	msgCh chan Message
 }
 
 // NewPeer creates and initializes a new Peer instance
 // conn: the established TCP connection for this peer
-func NewPeer(conn net.Conn, msgCh chan []byte) *Peer {
+func NewPeer(conn net.Conn, msgCh chan Message) *Peer {
 	return &Peer{
 		conn:  conn,
 		msgCh: msgCh,
 	}
+}
+
+func (p *Peer) Send(msg []byte) (int, error) {
+	return p.conn.Write(msg)
 }
 
 // readLoop continuously reads data from the peer's connection
@@ -36,7 +40,10 @@ func (p *Peer) readLoop() error {
 		copy(msgBuf, buf[:n]) // copy only the bytes that were read
 		//- We'd keep the entire buf with 1019 unused bytes
 		//- Could contain garbage data from previous reads
-		p.msgCh <- msgBuf
+		p.msgCh <- Message{
+			data: msgBuf,
+			peer: p,
+		}
 		// TODO: Process the received message (msgBuf)
 	}
 }

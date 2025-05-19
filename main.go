@@ -7,8 +7,8 @@ import (
 	"log"      // for logging fatal errors
 	"log/slog" // structured logging
 	"net"      // networking primitives
-	"time"     // for timing operations, like sleeps
 
+	// for timing operations, like sleeps
 	"github.com/rohit21755/goredis/client" // client package for testing
 )
 
@@ -20,6 +20,12 @@ type Config struct {
 	ListenerAddr string // TCP address for the server to listen on
 }
 
+type Message struct {
+	data []byte
+	// conn net.Conn
+	peer *Peer
+}
+
 // Server represents the TCP server instance
 type Server struct {
 	Config                   // embedded config struct
@@ -27,7 +33,7 @@ type Server struct {
 	ln        net.Listener   // TCP listener instance
 	addPeerCh chan *Peer     // channel to add new peers to the map
 	quitCh    chan struct{}  // channel to signal server shutdown
-	msgCh     chan []byte    // channel to receive raw messages from peers
+	msgCh     chan Message   // channel to receive raw messages from peers
 	kv        *KV
 }
 
@@ -44,7 +50,7 @@ func NewServer(cfg Config) *Server {
 		peers:     make(map[*Peer]bool), // initialize empty peers map
 		addPeerCh: make(chan *Peer),     // create channel for peer management
 		quitCh:    make(chan struct{}),  // initialize quit channel
-		msgCh:     make(chan []byte),    // initialize message channel
+		msgCh:     make(chan Message),   // initialize message channel
 		kv:        NewKV(),              // initialize KV store
 	}
 }
@@ -59,7 +65,7 @@ func (s *Server) Start() error {
 	}
 	s.ln = ln   // store listener in server struct
 	go s.Loop() // start peer management loop in background
-	slog.Info("Server Running", "listenAddr", s.ListenerAddr)
+	// slog.Info("Server Running", "listenAddr", s.ListenerAddr)
 	go s.acceptLoop() // start accepting connections in background
 	return nil        // return nil on successful start
 }
@@ -77,9 +83,9 @@ func (s *Server) Start() error {
 // handleRawMessage parses and handles raw messages from peers
 // rawMsg: the raw byte slice received from a peer
 // Returns an error if parsing or handling fails.
-func (s *Server) handleRawMessage(rawMsg []byte) error {
+func (s *Server) handleMessage(rawMsg Message) error {
 	// slog.Info("rawsmg", rawMsg)
-	cmd, err := parseCommand(string(rawMsg)) // parse the raw message into a command
+	cmd, err := parseCommand(string(rawMsg.data)) // parse the raw message into a command
 	if err != nil {
 		return err // return parsing errors
 	}
@@ -87,6 +93,16 @@ func (s *Server) handleRawMessage(rawMsg []byte) error {
 	case SetCommand:
 		// Handle SetCommand by calling the set method
 		return s.kv.Set(v.key, v.val)
+	case GetCommand:
+		val, ok := s.kv.Get(v.key)
+		if !ok {
+			return fmt.Errorf("Key not found")
+		}
+		_, err := rawMsg.peer.Send(val)
+		if err != nil {
+			slog.Error("peer send error", "err", err)
+		}
+
 	// TODO: Add cases for other commands (GET, DEL, etc.)
 	default:
 		// Log unknown commands
@@ -102,14 +118,14 @@ func (s *Server) Loop() {
 		select {
 		case <-s.quitCh:
 			return // Exit loop when quit signal is received
-		case rawMsg := <-s.msgCh:
-			if err := s.handleRawMessage(rawMsg); err != nil {
+		case msg := <-s.msgCh:
+			if err := s.handleMessage(msg); err != nil {
 				slog.Error("Raw message error", "err", err)
 			}
 
 		case peer := <-s.addPeerCh: // wait for new peers
 			s.peers[peer] = true // add new peer to the map
-			slog.Info("peer added", "remoteAddr", peer.conn.RemoteAddr())
+			// slog.Info("peer added", "remoteAddr", peer.conn.RemoteAddr())
 			// default:
 			// 	fmt.Println("foo") // placeholder default case
 		}
@@ -136,7 +152,7 @@ func (s *Server) handleConn(conn net.Conn) {
 	newPeer := NewPeer(conn, s.msgCh) // Create a new peer for the connection
 
 	s.addPeerCh <- newPeer // Add the new peer to the server's peer map
-	slog.Info("new connection", "remoteAddr", conn.RemoteAddr())
+	// slog.Info("new connection", "remoteAddr", conn.RemoteAddr())
 	// Start the peer's read loop in a goroutine. This will block until the connection is closed or an error occurs.
 	if err := newPeer.readLoop(); err != nil {
 		slog.Error("Peer read error", "err", err, "remoteAddr", conn.RemoteAddr())
@@ -145,7 +161,6 @@ func (s *Server) handleConn(conn net.Conn) {
 }
 
 func main() {
-	fmt.Println("Hello, World!") // placeholder main function
 
 	// Start the server in a goroutine so the main function can continue.
 	s := NewServer(Config{})
@@ -158,6 +173,7 @@ func main() {
 
 	// Create and use a client to test the server. This is temporary for testing.
 	client := client.New("localhost:8080")
+
 	for i := 0; i < 10; i++ {
 		// Create a new client instance for each iteration
 
@@ -166,10 +182,15 @@ func main() {
 		if err := client.Set(context.TODO(), fmt.Sprintf("foo_%d", i), fmt.Sprintf("bar_%d", i)); err != nil {
 			log.Fatal(err)
 		}
+		val, err := client.Get(context.TODO(), fmt.Sprintf("foo_%d", i))
+		if err != nil {
+			log.Fatal(err)
+		}
+		fmt.Println("got back this:", val)
+
 	}
-	fmt.Println(s.kv.data)
+
 	// Keep the main goroutine running for a short duration to allow server to process requests.
-	time.Sleep(time.Second)
 
 	// The program will exit after the sleep finishes, as select{} is commented out.
 	// In a real server, you would use select{} or a similar mechanism to keep the main goroutine alive
