@@ -2,14 +2,15 @@
 package main
 
 import (
-	"context"  // for context handling
-	"fmt"      // for formatted I/O
-	"log"      // for logging fatal errors
+	// for context handling
+	"flag"
+	"fmt" // for formatted I/O
+
+	// for logging fatal errors
 	"log/slog" // structured logging
 	"net"      // networking primitives
-
 	// for timing operations, like sleeps
-	"github.com/rohit21755/goredis/client" // client package for testing
+	// client package for testing
 )
 
 // Default TCP server port if none specified
@@ -65,9 +66,11 @@ func (s *Server) Start() error {
 	}
 	s.ln = ln   // store listener in server struct
 	go s.Loop() // start peer management loop in background
-	// slog.Info("Server Running", "listenAddr", s.ListenerAddr)
-	go s.acceptLoop() // start accepting connections in background
-	return nil        // return nil on successful start
+	slog.Info("go redis Server Running", "listenAddr", s.ListenerAddr)
+	// start accepting connections in background
+
+	s.acceptLoop()
+	return nil // return nil on successful start
 }
 
 // set handles the SET command
@@ -96,7 +99,7 @@ func (s *Server) handleMessage(rawMsg Message) error {
 	case GetCommand:
 		val, ok := s.kv.Get(v.key)
 		if !ok {
-			return fmt.Errorf("Key not found")
+			return fmt.Errorf("key not found")
 		}
 		_, err := rawMsg.peer.Send(val)
 		if err != nil {
@@ -161,38 +164,44 @@ func (s *Server) handleConn(conn net.Conn) {
 }
 
 func main() {
-
+	listenAddr := flag.String("listenAddr", defaultListenAddr, "listen address for go redis server")
+	flag.Parse()
+	println(*listenAddr)
 	// Start the server in a goroutine so the main function can continue.
-	s := NewServer(Config{})
-	go func() {
+	s := NewServer(Config{
+		ListenerAddr: *listenAddr,
+	})
 
-		if err := s.Start(); err != nil {
-			log.Fatal(err)
-		}
-	}()
+	s.Start()
+	// go func() {
 
-	// Create and use a client to test the server. This is temporary for testing.
-	client, err := client.New("localhost:8080")
-	if err != nil {
-		log.Fatal(err)
-	}
+	// 	if err := s.Start(); err != nil {
+	// 		log.Fatal(err)
+	// 	}
+	// }()
 
-	for i := 0; i < 10; i++ {
-		// Create a new client instance for each iteration
-		fmt.Println("SET =>", fmt.Sprintf("bar_%d", i))
-		// Call the Set method on the client
-		// Using context.TODO() as context handling is not yet implemented in the client.
-		if err := client.Set(context.TODO(), fmt.Sprintf("foo_%d", i), fmt.Sprintf("bar_%d", i)); err != nil {
-			log.Fatal(err)
-		}
+	// // Create and use a client to test the server. This is temporary for testing.
+	// client, err := client.New("localhost:8080")
+	// if err != nil {
+	// 	log.Fatal(err)
+	// }
 
-		val, err := client.Get(context.TODO(), fmt.Sprintf("foo_%d", i))
-		if err != nil {
-			log.Fatal(err)
-		}
-		fmt.Println("GET =>", val)
+	// for i := 0; i < 10; i++ {
+	// 	// Create a new client instance for each iteration
+	// 	fmt.Println("SET =>", fmt.Sprintf("bar_%d", i))
+	// 	// Call the Set method on the client
+	// 	// Using context.TODO() as context handling is not yet implemented in the client.
+	// 	if err := client.Set(context.TODO(), fmt.Sprintf("foo_%d", i), fmt.Sprintf("bar_%d", i)); err != nil {
+	// 		log.Fatal(err)
+	// 	}
 
-	}
+	// 	val, err := client.Get(context.TODO(), fmt.Sprintf("foo_%d", i))
+	// 	if err != nil {
+	// 		log.Fatal(err)
+	// 	}
+	// 	fmt.Println("GET =>", val)
+
+	// }
 
 	// Keep the main goroutine running for a short duration to allow server to process requests.
 

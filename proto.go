@@ -54,7 +54,7 @@ func parseCommand(raw string) (Command, error) {
 				case CommandGET:
 					// Validate the number of arguments for the SET command
 					if len(v.Array()) != 2 {
-						return nil, fmt.Errorf("Invalid command") // return error for incorrect argument count
+						return nil, fmt.Errorf("invalid command") // return error for incorrect argument count
 					}
 					// Create and return a SetCommand struct
 					cmd := GetCommand{
@@ -66,7 +66,7 @@ func parseCommand(raw string) (Command, error) {
 				case CommandSET:
 					// Validate the number of arguments for the SET command
 					if len(v.Array()) != 3 {
-						return nil, fmt.Errorf("Invalid command") // return error for incorrect argument count
+						return nil, fmt.Errorf("invalid command") // return error for incorrect argument count
 					}
 					// Create and return a SetCommand struct
 					cmd := SetCommand{
