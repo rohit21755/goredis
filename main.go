@@ -127,6 +127,7 @@ func (s *Server) Loop() {
 			}
 
 		case peer := <-s.addPeerCh: // wait for new peers
+			slog.Info("new peer connnected", "remoteAddr", peer.conn.RemoteAddr())
 			s.peers[peer] = true // add new peer to the map
 			// slog.Info("peer added", "remoteAddr", peer.conn.RemoteAddr())
 			// default:
