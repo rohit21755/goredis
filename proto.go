@@ -26,7 +26,7 @@ type SetCommand struct {
 	key, val []byte // key and value to be set
 }
 type GetCommand struct {
-	key, val []byte // key and value to be set
+	key []byte // key and value to be set
 }
 
 // parseCommand parses a raw byte slice representing a Redis command into a Command interface
