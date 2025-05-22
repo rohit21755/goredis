@@ -21,7 +21,7 @@ type Config struct {
 }
 
 type Message struct {
-	data []byte
+	cmd Command
 	// conn net.Conn
 	peer *Peer
 }
@@ -85,11 +85,11 @@ func (s *Server) Start() error {
 // Returns an error if parsing or handling fails.
 func (s *Server) handleMessage(rawMsg Message) error {
 	// slog.Info("rawsmg", rawMsg)
-	cmd, err := parseCommand(string(rawMsg.data)) // parse the raw message into a command
-	if err != nil {
-		return err // return parsing errors
-	}
-	switch v := cmd.(type) {
+	// cmd, err := parseCommand(string(rawMsg.data)) // parse the raw message into a command
+	// if err != nil {
+	// 	return err // return parsing errors
+	// }
+	switch v := rawMsg.cmd.(type) {
 	case SetCommand:
 		// Handle SetCommand by calling the set method
 		return s.kv.Set(v.key, v.val)
@@ -179,7 +179,7 @@ func main() {
 
 	for i := 0; i < 10; i++ {
 		// Create a new client instance for each iteration
-
+		fmt.Println("SET =>", fmt.Sprintf("bar_%d", i))
 		// Call the Set method on the client
 		// Using context.TODO() as context handling is not yet implemented in the client.
 		if err := client.Set(context.TODO(), fmt.Sprintf("foo_%d", i), fmt.Sprintf("bar_%d", i)); err != nil {
@@ -190,7 +190,7 @@ func main() {
 		if err != nil {
 			log.Fatal(err)
 		}
-		fmt.Println("got back this:", val)
+		fmt.Println("GET =>", val)
 
 	}
 

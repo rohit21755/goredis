@@ -2,7 +2,12 @@
 package main
 
 import (
+	"fmt"
+	"io"
+	"log"
 	"net" // provides basic networking interface
+
+	"github.com/tidwall/resp"
 )
 
 // Peer represents a connected client in the TCP server
@@ -27,23 +32,68 @@ func (p *Peer) Send(msg []byte) (int, error) {
 // readLoop continuously reads data from the peer's connection
 // It runs in a loop until an error occurs or connection closes
 func (p *Peer) readLoop() error {
-	buf := make([]byte, 1024) // temporary buffer for reading data
+	rd := resp.NewReader(p.conn)
 	for {
-		// Read incoming data into buffer
-		n, err := p.conn.Read(buf)
+		// Read the next value from the RESP stream
+		v, _, err := rd.ReadValue()
+		// Check for end of file (end of input)
+		if err == io.EOF {
+			break // exit the loop if input is consumed
+		}
+		// Handle other potential read errors
 		if err != nil {
-			return err // return any read errors (including EOF)
+			log.Fatal(err) // log fatal errors and exit (consider more graceful error handling)
 		}
+		// Check if the parsed value is a RESP Array (typical for commands)
+		if v.Type() == resp.Array {
+			// Iterate through the elements of the array
+			for _, value := range v.Array() {
+				// Check the command name (first element of the array)
+				switch value.String() {
+				case CommandGET:
+					// Validate the number of arguments for the SET command
+					if len(v.Array()) != 2 {
+						return fmt.Errorf("Invalid command") // return error for incorrect argument count
+					}
+					// Create and return a SetCommand struct
+					cmd := GetCommand{
 
-		// Create a new buffer with exact size of message
-		msgBuf := make([]byte, n)
-		copy(msgBuf, buf[:n]) // copy only the bytes that were read
-		//- We'd keep the entire buf with 1019 unused bytes
-		//- Could contain garbage data from previous reads
-		p.msgCh <- Message{
-			data: msgBuf,
-			peer: p,
+						key: v.Array()[1].Bytes(), // Extract the key
+						// Extract the value
+					}
+
+					p.msgCh <- Message{
+						cmd:  cmd,
+						peer: p,
+					}
+					// return cmd, nil
+				case CommandSET:
+					// Validate the number of arguments for the SET command
+					if len(v.Array()) != 3 {
+						return fmt.Errorf("Invalid command") // return error for incorrect argument count
+					}
+					// Create and return a SetCommand struct
+					cmd := SetCommand{
+
+						key: v.Array()[1].Bytes(), // Extract the key
+						val: v.Array()[2].Bytes(), // Extract the value
+					}
+
+					p.msgCh <- Message{
+						cmd:  cmd,
+						peer: p,
+					}
+					// return cmd, nil // Return the parsed command and no error
+				default:
+					// Handle unknown commands (can add more cases here)
+				}
+			}
 		}
-		// TODO: Process the received message (msgBuf)
+		// Return an error for invalid or unknown command format
+		// return nil, fmt.Errorf("invalid or unknown command")
 	}
+	// Return an error if no command was parsed from the input
+	// return nil, fmt.Errorf("invalid or unknown command")
+	return nil
+
 }
