@@ -34,7 +34,7 @@ func New(address string) (*Client, error) {
 // key: the key to set.
 // val: the value to set.
 // Returns an error if the operation fails.
-func (c *Client) Set(ctx context.Context, key string, val string) error {
+func (c *Client) Set(ctx context.Context, key string, val any) error {
 	// Establish a TCP connection to the server address.
 
 	time.Sleep(time.Second)
@@ -43,7 +43,7 @@ func (c *Client) Set(ctx context.Context, key string, val string) error {
 	// Create a RESP writer that writes to the buffer.
 	wr := resp.NewWriter(buf)
 	// Write the SET command as a RESP Array: ["SET", key, val]
-	wr.WriteArray([]resp.Value{resp.StringValue("SET"), resp.StringValue(key), resp.StringValue(val)})
+	wr.WriteArray([]resp.Value{resp.StringValue("SET"), resp.StringValue(key), resp.IntegerValue(val.(int))})
 	// Write the buffered RESP message to the network connection.
 	// _, err = conn.Write(buf.Bytes())
 	_, err := c.conn.Write(buf.Bytes())
