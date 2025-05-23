@@ -14,14 +14,16 @@ import (
 type Peer struct {
 	conn  net.Conn // underlying network connection
 	msgCh chan Message
+	delCh chan *Peer
 }
 
 // NewPeer creates and initializes a new Peer instance
 // conn: the established TCP connection for this peer
-func NewPeer(conn net.Conn, msgCh chan Message) *Peer {
+func NewPeer(conn net.Conn, msgCh chan Message, delCh chan *Peer) *Peer {
 	return &Peer{
 		conn:  conn,
 		msgCh: msgCh,
+		delCh: delCh,
 	}
 }
 
@@ -33,11 +35,13 @@ func (p *Peer) Send(msg []byte) (int, error) {
 // It runs in a loop until an error occurs or connection closes
 func (p *Peer) readLoop() error {
 	rd := resp.NewReader(p.conn)
+
 	for {
 		// Read the next value from the RESP stream
 		v, _, err := rd.ReadValue()
 		// Check for end of file (end of input)
 		if err == io.EOF {
+			p.delCh <- p
 			break // exit the loop if input is consumed
 		}
 		// Handle other potential read errors

@@ -45,7 +45,7 @@ func TestNewClients(t *testing.T) {
 			if err != nil {
 				t.Fatal(err) // better than log.Fatal in test
 			}
-
+			defer c.Close()
 			key := fmt.Sprintf("foo_client_%d", i)
 			value := fmt.Sprintf("bar_client_%d", i)
 			if err := c.Set(context.TODO(), key, value); err != nil {
@@ -61,4 +61,5 @@ func TestNewClients(t *testing.T) {
 	}
 
 	wg.Wait() // wait for all goroutines to finish
+
 }

@@ -33,8 +33,9 @@ type Server struct {
 	peers     map[*Peer]bool // track active peer connections
 	ln        net.Listener   // TCP listener instance
 	addPeerCh chan *Peer     // channel to add new peers to the map
-	quitCh    chan struct{}  // channel to signal server shutdown
-	msgCh     chan Message   // channel to receive raw messages from peers
+	delPeerCh chan *Peer
+	quitCh    chan struct{} // channel to signal server shutdown
+	msgCh     chan Message  // channel to receive raw messages from peers
 	kv        *KV
 }
 
@@ -50,9 +51,10 @@ func NewServer(cfg Config) *Server {
 		Config:    cfg,                  // store the configuration
 		peers:     make(map[*Peer]bool), // initialize empty peers map
 		addPeerCh: make(chan *Peer),     // create channel for peer management
-		quitCh:    make(chan struct{}),  // initialize quit channel
-		msgCh:     make(chan Message),   // initialize message channel
-		kv:        NewKV(),              // initialize KV store
+		delPeerCh: make(chan *Peer),
+		quitCh:    make(chan struct{}), // initialize quit channel
+		msgCh:     make(chan Message),  // initialize message channel
+		kv:        NewKV(),             // initialize KV store
 	}
 }
 
@@ -132,6 +134,10 @@ func (s *Server) Loop() {
 			// slog.Info("peer added", "remoteAddr", peer.conn.RemoteAddr())
 			// default:
 			// 	fmt.Println("foo") // placeholder default case
+
+		case peer := <-s.delPeerCh:
+			slog.Info("Peer disconnected")
+			delete(s.peers, peer)
 		}
 	}
 }
@@ -153,7 +159,7 @@ func (s *Server) acceptLoop() {
 // conn: the established connection for the peer
 func (s *Server) handleConn(conn net.Conn) {
 	// Create a new peer for the connection and start its read loop.
-	newPeer := NewPeer(conn, s.msgCh) // Create a new peer for the connection
+	newPeer := NewPeer(conn, s.msgCh, s.delPeerCh) // Create a new peer for the connection
 
 	s.addPeerCh <- newPeer // Add the new peer to the server's peer map
 	// slog.Info("new connection", "remoteAddr", conn.RemoteAddr())
